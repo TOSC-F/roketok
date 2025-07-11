@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = [ "tests/math"]
+
+[workspace.package]
+authors = ["TOSC-F"]
+license = "MIT"
+repository = "https://github.com/TOSC-F/roketok.git"
+
+[patch.crates-io]
+roketok = { path = "./" }
+
+[package]
+authors = { workspace = true }
+name = "roketok"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+thin-vec = "0.2.14"

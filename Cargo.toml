@@ -17,6 +17,11 @@ version = "0.1.0"
 edition = "2024"
 license = { workspace = true }
 repository = { workspace = true }
+description = """
+This crate makes it easy for anyone to setup tokenization. It was primarily
+created because I got sick of writing tokenizers every time I wanted to parse
+something, so a lot of this is just for my own will but use this as you'd like.
+"""
 
 [dependencies]
 thin-vec = "0.2.14"

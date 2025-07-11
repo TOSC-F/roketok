@@ -3,14 +3,26 @@ use std::rc::Rc;
 use crate::{config::Configuration, iter::StreamIterator};
 use thin_vec::ThinVec;
 
+/// Provides the configurations for tokenizers
+/// the most basic being:
+/// ```rust,ignore
+/// Configuration<_, _>
+/// ```
 pub mod config;
+
+#[doc(hidden)]
 mod iter;
 
+/// Gives you all the basic utilities
+/// without scavenging for them.
 pub mod prelude {
     pub use crate::config::*;
     pub use crate::*;
 }
 
+/// # Token
+/// Represents a set of characters and their value
+/// and position data. Also comes with a `kind`.
 #[derive(Debug, Clone)]
 pub struct Token<K: Default> {
     /* Value Data */
@@ -22,6 +34,42 @@ pub struct Token<K: Default> {
     pub col: usize,
 }
 
+/// # Stream Tokenizer
+/// A very basic tokenizer, no token trees, nothing.
+/// Just creates a stream of tokens based on a set of rules.
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use roketok::prelude::*;
+/// 
+/// #[derive(Debug, Clone, Default)]
+/// pub enum TokenKind {
+///     Number,
+/// 
+///     Add,
+///     Sub,
+///     Mul,
+///     Div,
+/// 
+///     #[default]
+///     Invalid,
+/// }
+/// 
+/// fn main() {
+///     let config = Configuration::<TokenKind>::new()
+///         .add_rule(|c| c.is_numeric(), TokenKind::Number)
+///         .add_tokens([
+///             (&['+'], TokenKind::Add),
+///             (&['-'], TokenKind::Sub),
+///             (&['*'], TokenKind::Mul),
+///             (&['/'], TokenKind::Div),
+///         ]);
+///     let contents = "32 * 64 / 324 * 6 - 232 + 6644 + 324 * 3256 - 2".to_string();
+///     let mut tokenizer = StreamTokenizer::new(config, &contents);
+///     let stream = tokenizer.create_stream();
+/// }
+/// ```
 pub struct StreamTokenizer<'ci, K: Default + Clone> {
     /* Configuration */
     config: Rc<Configuration<'ci, K>>,
@@ -32,6 +80,8 @@ pub struct StreamTokenizer<'ci, K: Default + Clone> {
 }
 
 impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
+    /// Creates the `StreamTokenizer`, takes in basic config and
+    /// file contents, or whatever you want to tokenize.
     pub fn new(config: Configuration<'ci, K>, contents: &'ci String) -> Self {
         Self {
             config: Rc::new(config),
@@ -40,6 +90,7 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
         }
     }
     
+    #[doc(hidden)]
     fn next(&mut self) -> Option<char> {
         if let Some(next) = self.iter.next() {
             if next == '\n' {
@@ -55,6 +106,7 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
         None
     }
     
+    #[doc(hidden)]
     #[must_use]
     #[inline(always)]
     fn tokenize_symbols(&mut self,
@@ -100,6 +152,10 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
         stack
     }
     
+    /// # Create Stream
+    /// This function, believe it or not creates the token stream.
+    /// There are examples already showing how this works, so please refer
+    /// to them.
     pub fn create_stream(&mut self) -> Box<[Token<K>]> {
         let mut stream = ThinVec::new();
         let config = self.config.clone();

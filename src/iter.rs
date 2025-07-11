@@ -1,4 +1,5 @@
 pub struct StreamIterator<'str>(&'str [u8], usize);
+
 impl<'str> StreamIterator<'str> {
     pub(crate) fn new(stream: &'str str) -> Self {
         Self(stream.as_bytes(), 0)

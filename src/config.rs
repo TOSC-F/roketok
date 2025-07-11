@@ -23,7 +23,7 @@ use thin_vec::ThinVec;
 /// 
 /// fn main() {
 ///     let config = Configuration::<TokenKind>::new()
-///         .add_rule(|c| c.is_numeric(), TokenKind::Number)
+///         .add_rule(|c, _| c.is_numeric(), TokenKind::Number)
 ///         .add_tokens([
 ///             (&['+'], TokenKind::Plus),
 ///             (&['='], TokenKind::Equal),
@@ -32,7 +32,7 @@ use thin_vec::ThinVec;
 /// }
 /// ```
 pub struct Configuration<'s, K: Default> {
-    pub(crate) rules: ThinVec<(Box<dyn Fn(&char) -> bool>, K)>,
+    pub(crate) rules: ThinVec<(Box<dyn Fn(&char, usize) -> bool>, K)>,
     pub(crate) tokens: ThinVec<(&'s [char], K)>,
 }
 
@@ -54,7 +54,7 @@ impl<'s, K: Default> Configuration<'s, K> {
     #[inline(always)]
     pub fn add_rule<F>(mut self, f: F, kind: K) -> Self
     where
-        F: Fn(&char) -> bool + 'static,
+        F: Fn(&char, usize) -> bool + 'static,
     {
         self.rules.push((Box::new(f), kind));
         self

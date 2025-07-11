@@ -1,7 +1,3 @@
-[workspace]
-resolver = "3"
-members = [ "tests/math"]
-
 [workspace.package]
 authors = ["TOSC-F"]
 license = "MIT"

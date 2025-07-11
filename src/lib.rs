@@ -171,11 +171,13 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
                 }
                 
                 if let Some((rule, kind)) = config.rules.iter()
-                    .find(|e| e.0(&current))
+                    .find(|e| e.0(&current, 0))
                 {
+                    let mut current_index = 1;
                     while let Some(current) = self.iter.peek() {
-                        if !rule(&current) { break; }
+                        if !rule(&current, current_index) { break; }
                         self.next();
+                        current_index += 1;
                     }
                     
                     let end_iter_pos = self.iter.position();
@@ -195,7 +197,7 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
                 
                 while let Some(current) = self.iter.peek() {
                     if current.is_whitespace()
-                        || config.rules.iter().find(|e| e.0(&current)).is_some()
+                        || config.rules.iter().find(|e| e.0(&current, 0)).is_some()
                     {
                         break;
                     }

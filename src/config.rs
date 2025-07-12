@@ -1,5 +1,3 @@
-use thin_vec::ThinVec;
-
 /// # Configuration
 /// The most simple configuration system, used by
 /// `StreamTokenizer` as a way to setup rules and tokens.
@@ -32,16 +30,16 @@ use thin_vec::ThinVec;
 /// }
 /// ```
 pub struct Configuration<'s, K: Default> {
-    pub(crate) rules: ThinVec<(Box<dyn Fn(&char, usize) -> bool>, K)>,
-    pub(crate) tokens: ThinVec<(&'s [char], K)>,
+    pub(crate) rules: Vec<(Box<dyn Fn(&char, usize) -> bool>, K)>,
+    pub(crate) tokens: Vec<(&'s [char], K)>,
 }
 
 impl<'s, K: Default> Configuration<'s, K> {
     /// Creates the very basic `Configuration`
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            rules: ThinVec::new(),
-            tokens: ThinVec::new(),
+            rules: Vec::new(),
+            tokens: Vec::new(),
         }
     }
     

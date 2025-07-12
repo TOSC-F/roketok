@@ -1,7 +1,7 @@
 [workspace.package]
-authors = ["TOSC-F"]
+authors = ["rok3tt"]
 license = "MIT"
-repository = "https://github.com/TOSC-F/roketok.git"
+repository = "https://github.com/rok3tt/roketok.git"
 
 [patch.crates-io]
 roketok = { path = "./" }
@@ -9,7 +9,7 @@ roketok = { path = "./" }
 [package]
 authors = { workspace = true }
 name = "roketok"
-version = "0.1.2"
+version = "0.1.4"
 edition = "2024"
 license = { workspace = true }
 repository = { workspace = true }
@@ -19,5 +19,6 @@ created because I got sick of writing tokenizers every time I wanted to parse
 something, so a lot of this is just for my own will but use this as you'd like.
 """
 
+[features]
+
 [dependencies]
-thin-vec = "0.2.14"

@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use crate::{config::Configuration, iter::StreamIterator};
-use thin_vec::ThinVec;
 
 /// Provides the configurations for tokenizers
 /// the most basic being:
@@ -112,14 +111,14 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
     fn tokenize_symbols(&mut self,
         mut start_pos: (usize, usize),
         symbols: String
-    ) -> ThinVec<Token<K>> {
-        let mut stack = ThinVec::new();
+    ) -> Vec<Token<K>> {
+        let mut stack = Vec::new();
         
         let mut slice = &symbols[..];
         while slice.len() != 0 {
             let matching = self.config.tokens.iter()
                 .filter(|e| slice.starts_with(e.0))
-                .collect::<ThinVec<_>>();
+                .collect::<Vec<_>>();
             if matching.len() == 0 {
                 stack.push(Token {
                     value: slice.to_string(),
@@ -157,7 +156,7 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
     /// There are examples already showing how this works, so please refer
     /// to them.
     pub fn create_stream(&mut self) -> Box<[Token<K>]> {
-        let mut stream = ThinVec::new();
+        let mut stream = Vec::new();
         let config = self.config.clone();
         
         let mut start_iter_pos;

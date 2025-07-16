@@ -9,7 +9,7 @@ roketok = { path = "./" }
 [package]
 authors = { workspace = true }
 name = "roketok"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 license = { workspace = true }
 repository = { workspace = true }

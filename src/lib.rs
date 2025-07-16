@@ -71,7 +71,7 @@ pub struct Token<K: Default> {
 /// ```
 pub struct StreamTokenizer<'ci, K: Default + Clone> {
     /* Configuration */
-    config: Rc<Configuration<'ci, K>>,
+    config: Rc<&'ci Configuration<'ci, K>>,
     
     /* Content Iteration */
     iter: StreamIterator<'ci>,
@@ -81,7 +81,7 @@ pub struct StreamTokenizer<'ci, K: Default + Clone> {
 impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
     /// Creates the `StreamTokenizer`, takes in basic config and
     /// file contents, or whatever you want to tokenize.
-    pub fn new(config: Configuration<'ci, K>, contents: &'ci String) -> Self {
+    pub fn new(config: &'ci Configuration<'ci, K>, contents: &'ci String) -> Self {
         Self {
             config: Rc::new(config),
             iter: StreamIterator::new(contents),

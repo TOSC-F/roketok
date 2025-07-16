@@ -57,7 +57,7 @@ pub struct Token<K: Default> {
 /// 
 /// fn main() {
 ///     let config = Configuration::<TokenKind>::new()
-///         .add_rule(|c| c.is_numeric(), TokenKind::Number)
+///         .add_rule(|c, _| c.is_numeric(), TokenKind::Number)
 ///         .add_tokens([
 ///             (&['+'], TokenKind::Add),
 ///             (&['-'], TokenKind::Sub),
@@ -65,7 +65,7 @@ pub struct Token<K: Default> {
 ///             (&['/'], TokenKind::Div),
 ///         ]);
 ///     let contents = "32 * 64 / 324 * 6 - 232 + 6644 + 324 * 3256 - 2".to_string();
-///     let mut tokenizer = StreamTokenizer::new(config, &contents);
+///     let mut tokenizer = StreamTokenizer::new(&config, &contents);
 ///     let stream = tokenizer.create_stream();
 /// }
 /// ```
@@ -115,9 +115,15 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
         let mut stack = Vec::new();
         
         let mut slice = &symbols[..];
-        while slice.len() != 0 {
+        loop {
             let matching = self.config.tokens.iter()
-                .filter(|e| slice.starts_with(e.0))
+                .filter(|e| {
+                    for (c1, c2) in e.0.iter().zip(slice.chars()) {
+                        if *c1 != c2 { return false; }
+                    }
+                    
+                    true
+                })
                 .collect::<Vec<_>>();
             if matching.len() == 0 {
                 stack.push(Token {
@@ -144,6 +150,8 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
             });
             
             let best_match_len = best_match.0.len();
+            if best_match_len >= slice.len() { break; }
+            
             slice = &slice[best_match_len..];
             start_pos.1 += best_match_len;
         }

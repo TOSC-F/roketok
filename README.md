@@ -1,4 +1,8 @@
 # roketok
+> [!WARNING]
+> You must use version `>=2.0.0` as older crates have a \
+> breaking **bug** that will cause issues on most use cases.
+
 A simple tokenization library, focused on ease of use.
 Currently **roketok** is very much still under plenty of changes and currently is limited to simple linear tokenization.
 

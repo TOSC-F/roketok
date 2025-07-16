@@ -1,18 +1,10 @@
-[workspace.package]
+[package]
 authors = ["rok3tt"]
+name = "roketok"
+version = "0.2.0"
+edition = "2024"
 license = "MIT"
 repository = "https://github.com/rok3tt/roketok.git"
-
-[patch.crates-io]
-roketok = { path = "./" }
-
-[package]
-authors = { workspace = true }
-name = "roketok"
-version = "0.1.5"
-edition = "2024"
-license = { workspace = true }
-repository = { workspace = true }
 description = """
 This crate makes it easy for anyone to setup tokenization. It was primarily
 created because I got sick of writing tokenizers every time I wanted to parse

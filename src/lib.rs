@@ -118,6 +118,7 @@ impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
         loop {
             let matching = self.config.tokens.iter()
                 .filter(|e| {
+                    if e.0.len() > slice.len() { return false; }
                     for (c1, c2) in e.0.iter().zip(slice.chars()) {
                         if *c1 != c2 { return false; }
                     }

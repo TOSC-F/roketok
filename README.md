@@ -1,6 +1,6 @@
 # roketok
 > [!WARNING]
-> You must use version `>=2.0.0` as older crates have a \
+> You must use version `>=0.2.1` as older crates have a \
 > breaking **bug** that will cause issues on most use cases.
 
 A simple tokenization library, focused on ease of use.

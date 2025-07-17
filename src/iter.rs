@@ -62,7 +62,7 @@ impl<'str> StreamIterator<'str> {
     }
     
     #[must_use]
-    pub fn grab<Idx: Iterator<Item=usize>>(&mut self, idx: Idx) -> String {
+    pub fn grab<Idx: Iterator<Item=usize>>(&self, idx: Idx) -> String {
         let mut string = String::new();
         for i in idx {
             string.push(self.contents[i] as char);

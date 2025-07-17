@@ -15,6 +15,7 @@ use roketok::prelude::*;
 #[derive(Default)]
 enum TokenKind {
     Identifier,
+    Number,
     
     Asterisk,
     Ampersand,
@@ -55,6 +56,17 @@ fn main() {
                 }
                 false
             }), TokenKind::Identifier),
+            (TokenConfiguration::Rule(&|iter, _| {
+                if let Some(char) = iter.last() {
+                    if !char.is_numeric() { return false; }
+                    while let Some(char) = iter.peek() {
+                        if !char.is_alphanumeric() { break; }
+                        let _ = iter.next();
+                    }
+                    return true;
+                }
+                false
+            }), TokenKind::Number),
             
             (TokenConfiguration::Boring(&['*']), TokenKind::Asterisk),
             (TokenConfiguration::Boring(&['&']), TokenKind::Ampersand),

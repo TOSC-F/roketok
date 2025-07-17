@@ -1,7 +1,5 @@
 use crate::{
-    config::{Configuration, TokenConfiguration},
-    tokens::{Token, TreeNode},
-    iter::StreamIterator,
+    config::{Configuration, TokenConfiguration}, iter::StreamIterator, tokens::{Branch, Token, TreeNode}
 };
 
 /// Provides the configurations for tokenizers
@@ -36,9 +34,10 @@ pub mod prelude {
 /// ```rust
 /// use roketok::prelude::*;
 /// 
-/// #[derive(Default, Clone)]
+/// #[derive(Default)]
 /// enum TokenKind {
 ///     Identifier,
+///     Number,
 ///     
 ///     Asterisk,
 ///     Ampersand,
@@ -79,6 +78,17 @@ pub mod prelude {
 ///                 }
 ///                 false
 ///             }), TokenKind::Identifier),
+///             (TokenConfiguration::Rule(&|iter, _| {
+///                 if let Some(char) = iter.last() {
+///                     if !char.is_alphanumeric() { return false; }
+///                     while let Some(char) = iter.peek() {
+///                         if !char.is_alphanumeric() { break; }
+///                         let _ = iter.next();
+///                     }
+///                     return true;
+///                 }
+///                 false
+///             }), TokenKind::Number),
 ///             
 ///             (TokenConfiguration::Boring(&['*']), TokenKind::Asterisk),
 ///             (TokenConfiguration::Boring(&['&']), TokenKind::Ampersand),
@@ -127,6 +137,31 @@ impl<'items, K: Default + Clone> Tokenizer<'items, K> {
         }
     }
     
+    #[must_use]
+    #[inline(always)]
+    fn matches(&mut self, chars: &[char]) -> bool {
+        let mut iter = self.iter;
+        let mut matches = false;
+        for (i, char) in (0..chars.len()).zip(iter.last()) {
+            if char == chars[i] {
+                matches = true;
+            } else {
+                matches = false;
+                break;
+            }
+            
+            if i + 1 != chars.len() {
+                let _ = iter.next();
+            }
+        }
+        
+        if matches {
+            self.iter = iter;
+        }
+        
+        matches
+    }
+    
     #[doc(hidden)]
     fn tokenize(&mut self) -> TreeNode<K> {
         let start_iter_pos = self.iter.position() - 1;
@@ -143,24 +178,8 @@ impl<'items, K: Default + Clone> Tokenizer<'items, K> {
                     }
                 },
                 TokenConfiguration::Boring(chars) => {
-                    let mut iter = self.iter;
-                    let mut matches = false;
-                    for (i, char) in (0..chars.len()).zip(iter.last()) {
-                        if char == chars[i] {
-                            matches = true;
-                        } else {
-                            matches = false;
-                            break;
-                        }
-                        
-                        if i + 1 != chars.len() {
-                            let _ = iter.next();
-                        }
-                    }
-                    
-                    if matches {
-                        let record = self.iter.record().clone();
-                        self.iter = iter;
+                    let record = self.iter.record().clone();
+                    if self.matches(chars) {
                         return TreeNode::Leaf(Token {
                             value: self.iter.grab(start_iter_pos..self.iter.position()),
                             kind: kind.clone(),
@@ -168,9 +187,45 @@ impl<'items, K: Default + Clone> Tokenizer<'items, K> {
                         });
                     }
                 },
-                
-                // TODO
-                TokenConfiguration::Branch(..) => todo!(),
+                TokenConfiguration::Branch(start_chars, end_chars) => {
+                    let record = self.iter.record().clone();
+                    if self.matches(start_chars) {
+                        let start_token =  Token {
+                            value: self.iter.grab(start_iter_pos..self.iter.position()),
+                            kind: kind.clone(),
+                            record,
+                        };
+                        
+                        let mut stream = Vec::new();
+                        let mut end_token = None;
+                        while let Some(char) = self.iter.next() {
+                            if char.is_whitespace() { continue; }
+                            let token = self.tokenize();
+                            if let TreeNode::Leaf(token) = &token {
+                                if token.value == end_chars.iter().collect::<String>() {
+                                    end_token = Some(token.clone());
+                                    break;
+                                }
+                            }
+                            stream.push(token);
+                        }
+                        
+                        return TreeNode::Branch(Branch {
+                            value: (
+                                start_token.value,
+                                if let Some(end_token) = &end_token {
+                                    end_token.value.clone()
+                                } else {
+                                    "?".to_string()
+                                },
+                            ),
+                            kind: kind.clone(),
+                            stream,
+                            record,
+                            has_end: end_token.is_some(),
+                        });
+                    }
+                },
             }
         }
         

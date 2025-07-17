@@ -1,14 +1,14 @@
 [package]
 authors = ["rok3tt"]
 name = "roketok"
-version = "0.2.1"
+version = "0.3.0-pre1"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/rok3tt/roketok.git"
 description = """
-This crate makes it easy for anyone to setup tokenization. It was primarily
-created because I got sick of writing tokenizers every time I wanted to parse
-something, so a lot of this is just for my own will but use this as you'd like.
+This crate provides a way to simply set up a tokenizer and use it.
+Not recommended for simple tokenizers as this crate adds a bunch of stuff
+to support many if not all kinds of tokenizers.
 """
 
 [features]

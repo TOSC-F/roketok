@@ -1,6 +1,8 @@
-use std::rc::Rc;
-
-use crate::{config::Configuration, iter::StreamIterator};
+use crate::{
+    config::{Configuration, TokenConfiguration},
+    tokens::{Token, TreeNode},
+    iter::StreamIterator,
+};
 
 /// Provides the configurations for tokenizers
 /// the most basic being:
@@ -9,6 +11,14 @@ use crate::{config::Configuration, iter::StreamIterator};
 /// ```
 pub mod config;
 
+/// Provides `Record` which records the tokenizers
+/// data, allowing for more complex tokenizations.
+pub mod record;
+
+/// Provides the essentials for interacting and manipulating
+/// tokens after tokenization.
+pub mod tokens;
+
 #[doc(hidden)]
 mod iter;
 
@@ -16,211 +26,173 @@ mod iter;
 /// without scavenging for them.
 pub mod prelude {
     pub use crate::config::*;
-    pub use crate::*;
+    pub use crate::Tokenizer;
 }
 
-/// # Token
-/// Represents a set of characters and their value
-/// and position data. Also comes with a `kind`.
-#[derive(Debug, Clone)]
-pub struct Token<K: Default> {
-    /* Value Data */
-    pub value: String,
-    pub kind: K,
-    
-    /* Position Data */
-    pub row: usize,
-    pub col: usize,
-}
-
-/// # Stream Tokenizer
-/// A very basic tokenizer, no token trees, nothing.
-/// Just creates a stream of tokens based on a set of rules.
+/// # Tokenizer
+/// Uses `Configuration` to tokenize contents.
 /// 
-/// # Example
-/// 
+/// # Example (Taken from README.md)
 /// ```rust
 /// use roketok::prelude::*;
 /// 
-/// #[derive(Debug, Clone, Default)]
-/// pub enum TokenKind {
-///     Number,
-/// 
-///     Add,
-///     Sub,
-///     Mul,
-///     Div,
-/// 
+/// #[derive(Default, Clone)]
+/// enum TokenKind {
+///     Identifier,
+///     
+///     Asterisk,
+///     Ampersand,
+///     Semicolon,
+///     
+///     Equal,
+///     AddEqual,
+///     
+///     Parenthesis,
+///     
 ///     #[default]
 ///     Invalid,
 /// }
 /// 
 /// fn main() {
-///     let config = Configuration::<TokenKind>::new()
-///         .add_rule(|c, _| c.is_numeric(), TokenKind::Number)
+///     let contents = r#"
+///         void foo(int *value) {
+///             *value += 35;
+///         }
+///         
+///         int main(void) {
+///             int value = 34;
+///             foo(&value);
+///             return value;
+///         }
+///     "#;
+///     
+///     let config = Configuration::new()
 ///         .add_tokens([
-///             (&['+'], TokenKind::Add),
-///             (&['-'], TokenKind::Sub),
-///             (&['*'], TokenKind::Mul),
-///             (&['/'], TokenKind::Div),
+///             (TokenConfiguration::Rule(&|iter, _| {
+///                 if let Some(char) = iter.last() {
+///                     if !char.is_alphabetic() { return false; }
+///                     while let Some(char) = iter.peek() {
+///                         if !char.is_alphanumeric() { break; }
+///                         let _ = iter.next();
+///                     }
+///                     return true;
+///                 }
+///                 false
+///             }), TokenKind::Identifier),
+///             
+///             (TokenConfiguration::Boring(&['*']), TokenKind::Asterisk),
+///             (TokenConfiguration::Boring(&['&']), TokenKind::Ampersand),
+///             
+///             (TokenConfiguration::Boring(&['=']), TokenKind::Equal),
+///             (TokenConfiguration::Boring(&['+', '=']), TokenKind::AddEqual),
+///             
+///             (TokenConfiguration::Boring(&[';']), TokenKind::Semicolon),
+///             
+///             (TokenConfiguration::Branch(&['('], &[')']), TokenKind::Parenthesis),
 ///         ]);
-///     let contents = "32 * 64 / 324 * 6 - 232 + 6644 + 324 * 3256 - 2".to_string();
-///     let mut tokenizer = StreamTokenizer::new(&config, &contents);
-///     let stream = tokenizer.create_stream();
+///     let mut tokenizer = Tokenizer::new(&config, contents);
+///     let tree = tokenizer.build();
 /// }
 /// ```
-pub struct StreamTokenizer<'ci, K: Default + Clone> {
-    /* Configuration */
-    config: Rc<&'ci Configuration<'ci, K>>,
-    
-    /* Content Iteration */
-    iter: StreamIterator<'ci>,
-    pos: (usize, usize),
+pub struct Tokenizer<'items, K: Default + Clone> {
+    config: &'items Configuration<'items, K>,
+    iter: StreamIterator<'items>,
 }
 
-impl<'ci, K: Default + Clone> StreamTokenizer<'ci, K> {
-    /// Creates the `StreamTokenizer`, takes in basic config and
-    /// file contents, or whatever you want to tokenize.
-    pub fn new(config: &'ci Configuration<'ci, K>, contents: &'ci String) -> Self {
+impl<'items, K: Default + Clone> Tokenizer<'items, K> {
+    /// Creates a new `Tokenizer` from a configuration and the
+    /// contents (the `String` you want to tokenize).
+    /// 
+    /// # Example
+    /// ```rust
+    /// use roketok::prelude::*;
+    /// 
+    /// #[derive(Default, Clone)]
+    /// enum TokenKind {
+    ///     #[default]
+    ///     Invalid,
+    /// }
+    /// 
+    /// let contents = "This gets tokenized. But configuration is empty, so in this case it doesn't.";
+    /// 
+    /// let config = Configuration::<'_, TokenKind>::new();
+    /// let tokenizer = Tokenizer::new(&config, &contents);
+    /// ```
+    /// 
+    /// See [`Tokenizer`] for more details.
+    pub fn new(config: &'items Configuration<'items, K>, contents: &'items str) -> Self {
         Self {
-            config: Rc::new(config),
+            config,
             iter: StreamIterator::new(contents),
-            pos: (1, 1),
         }
     }
     
     #[doc(hidden)]
-    fn next(&mut self) -> Option<char> {
-        if let Some(next) = self.iter.next() {
-            if next == '\n' {
-                self.pos.0 += 1;
-                self.pos.1 = 1;
-            } else {
-                self.pos.1 += 1;
-            }
-            
-            return Some(next);
-        }
-        
-        None
-    }
-    
-    #[doc(hidden)]
-    #[must_use]
-    #[inline(always)]
-    fn tokenize_symbols(&mut self,
-        mut start_pos: (usize, usize),
-        symbols: String
-    ) -> Vec<Token<K>> {
-        let mut stack = Vec::new();
-        
-        let mut slice = &symbols[..];
-        loop {
-            let matching = self.config.tokens.iter()
-                .filter(|e| {
-                    if e.0.len() > slice.len() { return false; }
-                    for (c1, c2) in e.0.iter().zip(slice.chars()) {
-                        if *c1 != c2 { return false; }
+    fn tokenize(&mut self) -> TreeNode<K> {
+        let start_iter_pos = self.iter.position() - 1;
+        for (config, kind) in self.config.0.iter() {
+            match config {
+                TokenConfiguration::Rule(rule) => {
+                    let record = self.iter.record().clone();
+                    if rule(&mut self.iter, &record) == true {
+                        return TreeNode::Leaf(Token {
+                            value: self.iter.grab(start_iter_pos..self.iter.position()),
+                            kind: kind.clone(),
+                            record,
+                        });
                     }
-                    
-                    true
-                })
-                .collect::<Vec<_>>();
-            if matching.len() == 0 {
-                stack.push(Token {
-                    value: slice.to_string(),
-                    kind: K::default(),
-                    row: start_pos.0,
-                    col: start_pos.1,
-                });
-                break;
-            }
-            
-            let mut best_match = matching[0];
-            for entry in matching {
-                if best_match.0.len() < entry.0.len() {
-                    best_match = entry;
-                }
-            }
-            
-            stack.push(Token {
-                value: best_match.0.iter().collect::<String>(),
-                kind: best_match.1.clone(),
-                row: start_pos.0,
-                col: start_pos.1,
-            });
-            
-            let best_match_len = best_match.0.len();
-            if best_match_len >= slice.len() { break; }
-            
-            slice = &slice[best_match_len..];
-            start_pos.1 += best_match_len;
-        }
-        
-        stack
-    }
-    
-    /// # Create Stream
-    /// This function, believe it or not creates the token stream.
-    /// There are examples already showing how this works, so please refer
-    /// to them.
-    pub fn create_stream(&mut self) -> Box<[Token<K>]> {
-        let mut stream = Vec::new();
-        let config = self.config.clone();
-        
-        let mut start_iter_pos;
-        let mut start_pos;
-        'update: loop {
-            start_iter_pos = self.iter.position();
-            start_pos = self.pos;
-            while let Some(current) = self.next() {
-                if current.is_whitespace() {
-                    continue 'update;
-                }
-                
-                if let Some((rule, kind)) = config.rules.iter()
-                    .find(|e| e.0(&current, 0))
-                {
-                    let mut current_index = 1;
-                    while let Some(current) = self.iter.peek() {
-                        if !rule(&current, current_index) { break; }
-                        self.next();
-                        current_index += 1;
-                    }
-                    
-                    let end_iter_pos = self.iter.position();
-                    let value = self.iter.grab(start_iter_pos..end_iter_pos);
-                    stream.push(Token {
-                        /* ValueData */
-                        value,
-                        kind: kind.clone(),
+                },
+                TokenConfiguration::Boring(chars) => {
+                    let mut iter = self.iter;
+                    let mut matches = false;
+                    for (i, char) in (0..chars.len()).zip(iter.last()) {
+                        if char == chars[i] {
+                            matches = true;
+                        } else {
+                            matches = false;
+                            break;
+                        }
                         
-                        /* Position Data */
-                        row: start_pos.0,
-                        col: start_pos.1
-                    });
-                    
-                    continue 'update;
-                }
-                
-                while let Some(current) = self.iter.peek() {
-                    if current.is_whitespace()
-                        || config.rules.iter().find(|e| e.0(&current, 0)).is_some()
-                    {
-                        break;
+                        if i + 1 != chars.len() {
+                            let _ = iter.next();
+                        }
                     }
                     
-                    self.next();
-                }
+                    if matches {
+                        let record = self.iter.record().clone();
+                        self.iter = iter;
+                        return TreeNode::Leaf(Token {
+                            value: self.iter.grab(start_iter_pos..self.iter.position()),
+                            kind: kind.clone(),
+                            record,
+                        });
+                    }
+                },
                 
-                let symbols = self.iter.grab(start_iter_pos..self.iter.position());
-                stream.extend(self.tokenize_symbols(start_pos, symbols));
-                continue 'update;
+                // TODO
+                TokenConfiguration::Branch(..) => todo!(),
             }
-            
-            break;
         }
         
-        stream.into()
+        TreeNode::Leaf(Token {
+            value: self.iter.last().unwrap().to_string(),
+            kind: K::default(),
+            record: self.iter.record().clone(),
+        })
+    }
+    
+    /// # Builds the Token Tree
+    /// Creates the token tree using the configuration
+    /// and contents you provided in new. See
+    /// [`Tokenizer::new`] for more details.
+    pub fn build(&mut self) -> Vec<TreeNode<K>> {
+        let mut stream = Vec::new();
+        
+        while let Some(char) = self.iter.next() {
+            if char.is_whitespace() { continue; }
+            stream.push(self.tokenize());
+        }
+        
+        stream
     }
 }

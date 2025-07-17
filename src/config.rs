@@ -1,11 +1,32 @@
-/// # Configuration
+use crate::{iter::StreamIterator, record::Record};
+
+/// # Token Configuration
+/// Only certain configurations support this, but it
+/// basically describes what a token does.
+pub enum TokenConfiguration<'tok> {
+    /// The absolute most boring token ever, does absolutely
+    /// nothing and is just processed normally.
+    Boring(&'tok [char]),
+    
+    /// A `branch` contains a start and end token, it basically
+    /// creates a new branch in the token tree.
+    Branch(&'tok [char], &'tok [char]),
+    
+    /// A rule based token, like an identifier for example.
+    /// These tokens are not bound by a strict symbol-only
+    /// token system and they can do whatever they want.
+    Rule(&'tok dyn Fn(&mut StreamIterator, &Record) -> bool),
+}
+
+
+/// # Basic Configuration
 /// The most simple configuration system, used by
 /// `StreamTokenizer` as a way to setup rules and tokens.
 /// 
 /// # Example
 /// 
 /// ```rust
-/// use roketok::prelude::Configuration;
+/// use roketok::prelude::*;
 /// 
 /// #[derive(Clone, Copy, Default)]
 /// enum TokenKind {
@@ -15,61 +36,36 @@
 ///     Equal,
 ///     FatArrow,
 /// 
+///     Parenthesis,
+/// 
 ///     #[default]
 ///     Invalid,
 /// }
-/// 
-/// fn main() {
-///     let config = Configuration::<TokenKind>::new()
-///         .add_rule(|c, _| c.is_numeric(), TokenKind::Number)
-///         .add_tokens([
-///             (&['+'], TokenKind::Plus),
-///             (&['='], TokenKind::Equal),
-///             (&['=', '>'], TokenKind::FatArrow),
-///         ]);
-/// }
+///  
+/// let config = Configuration::<TokenKind>::new()
+///     .add_tokens([
+///         (TokenConfiguration::Branch(&['('], &[')']), TokenKind::Parenthesis),
+///         (TokenConfiguration::Boring(&['+']), TokenKind::Plus),
+///         (TokenConfiguration::Boring(&['=']), TokenKind::Equal),
+///         (TokenConfiguration::Boring(&['=', '>']), TokenKind::FatArrow),
+///     ]);
 /// ```
-pub struct Configuration<'s, K: Default> {
-    pub(crate) rules: Vec<(Box<dyn Fn(&char, usize) -> bool>, K)>,
-    pub(crate) tokens: Vec<(&'s [char], K)>,
-}
+pub struct Configuration<'tok, K: Default>(pub(crate) Vec<(TokenConfiguration<'tok>, K)>);
 
-impl<'s, K: Default> Configuration<'s, K> {
+impl<'tok, K: Default> Configuration<'tok, K> {
     /// Creates the very basic `Configuration`
     pub const fn new() -> Self {
-        Self {
-            rules: Vec::new(),
-            tokens: Vec::new(),
-        }
-    }
-    
-    /// # Add Rule
-    /// Quite literally does what it says. But you can define
-    /// any rule, as long as it works char by char. Currently
-    /// advanced rule systems are reserved for other systems.
-    /// Examples are already shown, please refer to them.
-    #[must_use]
-    #[inline(always)]
-    pub fn add_rule<F>(mut self, f: F, kind: K) -> Self
-    where
-        F: Fn(&char, usize) -> bool + 'static,
-    {
-        self.rules.push((Box::new(f), kind));
-        self
+        Self(Vec::new())
     }
     
     /// # Add Tokens
-    /// Adds a table of tokens to your configuration.
-    /// Each entry is simply in this format:
-    /// ```rust,ignore
-    /// (&['_', ..], K)
-    /// ```
-    /// more of these are previously shown, please
-    /// refer to those examples.
+    /// Extends the amount of tokens stored in the Configuration.
+    /// It's relatively simple and every entry takes in a tuple of
+    /// a `TokenConfiguration` and the token kind item `K`.
     #[must_use]
     #[inline(always)]
-    pub fn add_tokens<const N: usize>(mut self, tokens: [(&'s [char], K) ; N]) -> Self {
-        self.tokens.extend(tokens);
+    pub fn add_tokens<const N: usize>(mut self, tokens: [(TokenConfiguration<'tok>, K) ; N]) -> Self {
+        self.0.extend(tokens);
         self
     }
 }

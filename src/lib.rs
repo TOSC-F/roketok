@@ -18,7 +18,7 @@ pub mod record;
 pub mod tokens;
 
 #[doc(hidden)]
-mod iter;
+pub mod iter;
 
 /// Gives you all the basic utilities
 /// without scavenging for them.
